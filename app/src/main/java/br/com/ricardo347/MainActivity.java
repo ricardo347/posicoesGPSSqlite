@@ -53,11 +53,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        localizacoes = new ArrayList<>();
+        // alimentando a lista de ultimas localidades persistida no banco dados.
+        localizacoes = buscaLocalizacao();
         adapter = new RecyclerViewAdapter(localizacoes);
-
-
-
 
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -71,13 +69,6 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationChanged(Location location) {
                 lat = location.getLatitude();
                 lon = location.getLongitude();
-                String exibir =
-                        String.format(
-                                Locale.getDefault(),
-                                "Lat: %f, Long: %f",
-                                lat,
-                                lon
-                        );
 
  // ###############################################################################################################
  // Implementação da solicitação do exercício, guardar os ultimos 50
@@ -99,7 +90,6 @@ public class MainActivity extends AppCompatActivity {
                     adapter.notifyDataSetChanged();
                 }
 
-               Log.v("localidade",exibir);
             }
 //########################################################################################################################
 
@@ -140,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
     //USADO PARA DELETAR O PRIMEIRO DA FILA, PARA QUE SEMPRE SEJA EXIBIDO OS 50 ULTIMOS
 
     public void deletaPrimeiraDb (){
-        dbHelper dbh = new dbHelper(getApplicationContext());
+        dbHelper dbh = new dbHelper(this);
         SQLiteDatabase db = dbh.getReadableDatabase();
         Cursor cursor =  db.rawQuery("SELECT MIN(POSITION) FROM COORDENADAS", null);
         int pos = 0;
@@ -150,6 +140,23 @@ public class MainActivity extends AppCompatActivity {
         }
         String sql = String.format("DELETE FROM COORDENADAS WHERE POSITION = %s", pos);
         db.execSQL(sql);
+    }
+
+    public List<Localizacao> buscaLocalizacao(){
+        List<Localizacao> localizacoes = new ArrayList<>();
+        dbHelper dbh = new dbHelper(this);
+        SQLiteDatabase db = dbh.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM COORDENADAS",null);
+
+        if(cursor != null){
+            while(cursor.moveToNext()){
+                localizacoes.add(new Localizacao(
+                        cursor.getDouble(0),
+                        cursor.getDouble(1)
+                ));
+            }
+        }
+        return localizacoes;
     }
 
     //#################################################################################################################
@@ -274,20 +281,14 @@ public class MainActivity extends AppCompatActivity {
         dbHelper(Context context){
 
             super(context, DB_NAME,null,DB_VERSION);
-
-
         }
 
-        public void onOpen(SQLiteDatabase db){
-            super.onOpen(db);
-            db.execSQL("DELETE FROM COORDENADAS");
-        }
+
 // a tabela de coordenadas, tem um campo position como autoincremento, pois na logica estabelecida
     // quando chega a 50 ele exclui o primeiro, fica muito mais fácil sempre manter 50 itens no banco
     //e excluir o min(position).
         @Override
         public void onCreate(SQLiteDatabase db) {
-
            db.execSQL("CREATE TABLE COORDENADAS (POSITION INTEGER PRIMARY KEY AUTOINCREMENT, LAT REAL, LON REAL)");
         }
 
